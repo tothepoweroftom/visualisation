@@ -4,9 +4,10 @@ import { RGBELoader } from "./loaders/RGBELoader.js";
 import hdr from "./assets/royal_esplanade_1k.hdr"
 const s_group = new THREE.Group();
 import loadSphereTextures from './three/Globe'
+import Tetrahedron from './three/Tetrahedron'
 
 let params = {
-  color: 0xffafaa,
+  color: 0xffffff,
   transparency: 0.850,
   envMapIntensity: 0.9,
   lightIntensity: 0.6,
@@ -32,6 +33,8 @@ const main = () => {
   let mouse = new THREE.Vector2(), INTERSECTED;
   let raycaster;
 
+  let speedControls = []
+
 
 
   let sphereGroup = new THREE.Group();
@@ -45,6 +48,8 @@ const main = () => {
   camera.position.z = 500;
   scene.add(s_group);
   scene.add(sphereGroup);
+  let arrowControls = new THREE.Group()
+  scene.add(arrowControls)
 
 
 
@@ -55,6 +60,14 @@ const main = () => {
   const onDocumentMouseMove = (event) => {
     // the following line would stop any other event handler from firing
     // (such as the mouse's TrackballControls)
+    event.preventDefault();
+  
+    // update the mouse variable
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  }
+
+  const onDocumentTouchBegan = event => {
     event.preventDefault();
   
     // update the mouse variable
@@ -121,25 +134,39 @@ const main = () => {
 					transparent: true
 				} );
 
-				var material1 = new THREE.MeshPhysicalMaterial().copy( material );
 
-				var material1b = new THREE.MeshPhysicalMaterial().copy( material );
-				material1b.side = THREE.BackSide;
+          let controlGeo = new THREE.TetrahedronGeometry(2,0);
+          let controlMaterial = new THREE.MeshBasicMaterial({ transparent: true, color: new THREE.Color('white')})
+          let upControl = new THREE.Mesh(controlGeo, controlMaterial)
+          let downControl = new THREE.Mesh(controlGeo, controlMaterial)
+          upControl.position.y = 15
+          upControl.rotation.y = Math.PI/4
+          upControl.rotation.x = Math.PI/4 + Math.PI
+          upControl.rotation.z = Math.PI
+
+          downControl.position.y = -15
+          downControl.rotation.z = Math.PI/4
+          downControl.rotation.x = Math.PI/4
+          arrowControls.add(upControl)
+          arrowControls.add(downControl)
+          arrowControls.children.forEach((child)=>{
+            child.material.opacity = 0
+          })
+         
+          
 
 
 
-				mesh1 = new THREE.Mesh( geometry, material1 );
-				// mesh1.position.x = 0.0;
-				// scene.add( mesh1 );
-
-				var mesh = new THREE.Mesh( geometry, material1b );
-				mesh.renderOrder = - 1;
-        mesh1.add( mesh );
-
+        
 
 
         for(let i=0; i<11; i++){
+          var material1 = new THREE.MeshPhysicalMaterial().copy( material );
+
+          var material1b = new THREE.MeshPhysicalMaterial().copy( material );
+          material1b.side = THREE.BackSide;
           let sphere = new THREE.Mesh( geometry, material1 );
+          sphere.userData = {name: "something", speed: 1}
           // mesh1.position.x = 0.0;
           // scene.add( mesh1 );
   
@@ -162,14 +189,16 @@ const main = () => {
             envMapIntensity: params.envMapIntensity,
             depthWrite: false,
             // transparency: 0., // use material.transparency for glass materials
-            opacity: 1,                        // set material.opacity to 1 when material.transparency is non-zero
+            opacity: 0.9,                        // set material.opacity to 1 when material.transparency is non-zero
             // transparent: true
           } );
           let innerSphere = new THREE.Mesh(innerGeometry, innerMaterial);
           console.log(innerSphere)
           console.log(colors[i%colors.length])
+          
 
           sphere.add(innerSphere)
+          
 
           if(i!=0){
             sphere.position.x = params.mapRadius * Math.sin(i*(2*Math.PI/10))
@@ -220,9 +249,9 @@ const main = () => {
     camera.updateMatrixWorld();
 
     sphereGroup.children.forEach((child, index)=>{
-        child.rotation.x  = t * (0.0002+ 1/(10000+index*10000));
-         child.rotation.z = - t * (0.0002+ 1/(10000+index*10000));
-         child.position.y += 0.009*Math.sin(t*(0.002+ 1/(1000+index*1000)))
+        child.rotation.x  = t * (0.0002+ 1/(10000+index*10000)) * child.userData.speed;
+         child.rotation.z = - t * (0.0002+ 1/(10000+index*10000))  * child.userData.speed;
+         child.position.y += 0.02*Math.sin(t*(0.002+ 1/(1000+index*1000)))
     })
    
     renderer.render(scene, camera);
@@ -247,18 +276,27 @@ const main = () => {
 
       if ( INTERSECTED != intersects[ 0 ].object ) {
 
-        if ( INTERSECTED ) INTERSECTED.children[1].material.emissive.setHex( INTERSECTED.currentHex );
-        console.log(intersects)
+        if ( INTERSECTED ) INTERSECTED.children[0].material.emissive.setHex( INTERSECTED.currentHex );
+        // console.log(intersects)
 
         INTERSECTED = intersects[ 0 ].object;
         INTERSECTED.currentHex = INTERSECTED.material.emissive.getHex();
-        INTERSECTED.children[1].material.emissive.setHex( 0xffffff );
+        INTERSECTED.children[0].material.emissive.setHex( 0xffffff );
+
+        arrowControls.position.x = INTERSECTED.position.x
+        arrowControls.position.y = INTERSECTED.position.y
+        arrowControls.children.forEach((child)=>{child.material.opacity = 1})
+        INTERSECTED.userData.speed = 5
 
       }
 
     } else {
 
-      if ( INTERSECTED ) INTERSECTED.children[1].material.emissive.setHex( INTERSECTED.currentHex );
+      if ( INTERSECTED ) {
+        INTERSECTED.userData.speed = 1
+
+        INTERSECTED.children[0].material.emissive.setHex( INTERSECTED.currentHex );
+      }
 
       INTERSECTED = null;
 
@@ -298,6 +336,7 @@ const main = () => {
   onWindowResize();
   document.addEventListener( 'mousemove', onDocumentMouseMove, false );
   document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+  document.addEventListener( 'ontouchended', onDocumentMouseMove, false );
 
   window.addEventListener("resize", onWindowResize, false);
 };

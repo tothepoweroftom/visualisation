@@ -36906,7 +36906,23 @@ function loadSphereTextures() {
 
 var _default = loadSphereTextures;
 exports.default = _default;
-},{"three":"node_modules/three/build/three.module.js","../assets/sphere/DisplacementMap.png":"src/assets/sphere/DisplacementMap.png","../assets/sphere/NormalMap.png":"src/assets/sphere/NormalMap.png","../assets/sphere/SpecularMap.png":"src/assets/sphere/SpecularMap.png"}],"src/index.js":[function(require,module,exports) {
+},{"three":"node_modules/three/build/three.module.js","../assets/sphere/DisplacementMap.png":"src/assets/sphere/DisplacementMap.png","../assets/sphere/NormalMap.png":"src/assets/sphere/NormalMap.png","../assets/sphere/SpecularMap.png":"src/assets/sphere/SpecularMap.png"}],"src/three/Tetrahedron.js":[function(require,module,exports) {
+"use strict";
+
+var THREE = _interopRequireWildcard(require("three"));
+
+function _getRequireWildcardCache() { if (typeof WeakMap !== "function") return null; var cache = new WeakMap(); _getRequireWildcardCache = function () { return cache; }; return cache; }
+
+function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } if (obj === null || typeof obj !== "object" && typeof obj !== "function") { return { default: obj }; } var cache = _getRequireWildcardCache(); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj.default = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
+
+THREE.TetrahedronGeometry = function (radius, detail) {
+  var vertices = [1, 1, 1, -1, -1, 1, -1, 1, -1, 1, -1, -1];
+  var indices = [2, 1, 0, 0, 3, 2, 1, 3, 0, 2, 3, 1];
+  THREE.PolyhedronGeometry.call(this, vertices, indices, radius, detail);
+};
+
+THREE.TetrahedronGeometry.prototype = Object.create(THREE.Geometry.prototype);
+},{"three":"node_modules/three/build/three.module.js"}],"src/index.js":[function(require,module,exports) {
 "use strict";
 
 var THREE = _interopRequireWildcard(require("three"));
@@ -36919,6 +36935,8 @@ var _royal_esplanade_1k = _interopRequireDefault(require("./assets/royal_esplana
 
 var _Globe = _interopRequireDefault(require("./three/Globe"));
 
+var _Tetrahedron = _interopRequireDefault(require("./three/Tetrahedron"));
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _getRequireWildcardCache() { if (typeof WeakMap !== "function") return null; var cache = new WeakMap(); _getRequireWildcardCache = function () { return cache; }; return cache; }
@@ -36927,7 +36945,7 @@ function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj;
 
 var s_group = new THREE.Group();
 var params = {
-  color: 0xffafaa,
+  color: 0xffffff,
   transparency: 0.850,
   envMapIntensity: 0.9,
   lightIntensity: 0.6,
@@ -36952,6 +36970,7 @@ var main = function main() {
   var mouse = new THREE.Vector2(),
       INTERSECTED;
   var raycaster;
+  var speedControls = [];
   var sphereGroup = new THREE.Group(); //--
 
   var controls = new _threeOrbitcontrols.default(camera, canvas); // controls.target.set(0, 0, 0);
@@ -36962,12 +36981,21 @@ var main = function main() {
 
   camera.position.z = 500;
   scene.add(s_group);
-  scene.add(sphereGroup); //--
+  scene.add(sphereGroup);
+  var arrowControls = new THREE.Group();
+  scene.add(arrowControls); //--
   // Control
 
   var onDocumentMouseMove = function onDocumentMouseMove(event) {
     // the following line would stop any other event handler from firing
     // (such as the mouse's TrackballControls)
+    event.preventDefault(); // update the mouse variable
+
+    mouse.x = event.clientX / window.innerWidth * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  };
+
+  var onDocumentTouchBegan = function onDocumentTouchBegan(event) {
     event.preventDefault(); // update the mouse variable
 
     mouse.x = event.clientX / window.innerWidth * 2 - 1;
@@ -37024,18 +37052,35 @@ var main = function main() {
       // set material.opacity to 1 when material.transparency is non-zero
       transparent: true
     });
-    var material1 = new THREE.MeshPhysicalMaterial().copy(material);
-    var material1b = new THREE.MeshPhysicalMaterial().copy(material);
-    material1b.side = THREE.BackSide;
-    mesh1 = new THREE.Mesh(geometry, material1); // mesh1.position.x = 0.0;
-    // scene.add( mesh1 );
-
-    var mesh = new THREE.Mesh(geometry, material1b);
-    mesh.renderOrder = -1;
-    mesh1.add(mesh);
+    var controlGeo = new THREE.TetrahedronGeometry(2, 0);
+    var controlMaterial = new THREE.MeshBasicMaterial({
+      transparent: true,
+      color: new THREE.Color('white')
+    });
+    var upControl = new THREE.Mesh(controlGeo, controlMaterial);
+    var downControl = new THREE.Mesh(controlGeo, controlMaterial);
+    upControl.position.y = 15;
+    upControl.rotation.y = Math.PI / 4;
+    upControl.rotation.x = Math.PI / 4 + Math.PI;
+    upControl.rotation.z = Math.PI;
+    downControl.position.y = -15;
+    downControl.rotation.z = Math.PI / 4;
+    downControl.rotation.x = Math.PI / 4;
+    arrowControls.add(upControl);
+    arrowControls.add(downControl);
+    arrowControls.children.forEach(function (child) {
+      child.material.opacity = 0;
+    });
 
     for (var i = 0; i < 11; i++) {
-      var sphere = new THREE.Mesh(geometry, material1); // mesh1.position.x = 0.0;
+      var material1 = new THREE.MeshPhysicalMaterial().copy(material);
+      var material1b = new THREE.MeshPhysicalMaterial().copy(material);
+      material1b.side = THREE.BackSide;
+      var sphere = new THREE.Mesh(geometry, material1);
+      sphere.userData = {
+        name: "something",
+        speed: 1
+      }; // mesh1.position.x = 0.0;
       // scene.add( mesh1 );
 
       var mesh = new THREE.Mesh(geometry, material1b);
@@ -37058,7 +37103,7 @@ var main = function main() {
         envMapIntensity: params.envMapIntensity,
         depthWrite: false,
         // transparency: 0., // use material.transparency for glass materials
-        opacity: 1 // set material.opacity to 1 when material.transparency is non-zero
+        opacity: 0.9 // set material.opacity to 1 when material.transparency is non-zero
         // transparent: true
 
       });
@@ -37100,9 +37145,9 @@ var main = function main() {
     camera.lookAt(scene.position);
     camera.updateMatrixWorld();
     sphereGroup.children.forEach(function (child, index) {
-      child.rotation.x = t * (0.0002 + 1 / (10000 + index * 10000));
-      child.rotation.z = -t * (0.0002 + 1 / (10000 + index * 10000));
-      child.position.y += 0.009 * Math.sin(t * (0.002 + 1 / (1000 + index * 1000)));
+      child.rotation.x = t * (0.0002 + 1 / (10000 + index * 10000)) * child.userData.speed;
+      child.rotation.z = -t * (0.0002 + 1 / (10000 + index * 10000)) * child.userData.speed;
+      child.position.y += 0.02 * Math.sin(t * (0.002 + 1 / (1000 + index * 1000)));
     });
     renderer.render(scene, camera);
   };
@@ -37122,14 +37167,24 @@ var main = function main() {
 
     if (intersects.length > 0) {
       if (INTERSECTED != intersects[0].object) {
-        if (INTERSECTED) INTERSECTED.children[1].material.emissive.setHex(INTERSECTED.currentHex);
-        console.log(intersects);
+        if (INTERSECTED) INTERSECTED.children[0].material.emissive.setHex(INTERSECTED.currentHex); // console.log(intersects)
+
         INTERSECTED = intersects[0].object;
         INTERSECTED.currentHex = INTERSECTED.material.emissive.getHex();
-        INTERSECTED.children[1].material.emissive.setHex(0xffffff);
+        INTERSECTED.children[0].material.emissive.setHex(0xffffff);
+        arrowControls.position.x = INTERSECTED.position.x;
+        arrowControls.position.y = INTERSECTED.position.y;
+        arrowControls.children.forEach(function (child) {
+          child.material.opacity = 1;
+        });
+        INTERSECTED.userData.speed = 5;
       }
     } else {
-      if (INTERSECTED) INTERSECTED.children[1].material.emissive.setHex(INTERSECTED.currentHex);
+      if (INTERSECTED) {
+        INTERSECTED.userData.speed = 1;
+        INTERSECTED.children[0].material.emissive.setHex(INTERSECTED.currentHex);
+      }
+
       INTERSECTED = null;
     }
   };
@@ -37154,13 +37209,14 @@ var main = function main() {
   onWindowResize();
   document.addEventListener('mousemove', onDocumentMouseMove, false);
   document.addEventListener('mousedown', onDocumentMouseDown, false);
+  document.addEventListener('ontouchended', onDocumentMouseMove, false);
   window.addEventListener("resize", onWindowResize, false);
 };
 
 var hdrEquirect = new _RGBELoader.RGBELoader().setDataType(THREE.FloatType).load(_royal_esplanade_1k.default, function (texture) {
   main();
 });
-},{"three":"node_modules/three/build/three.module.js","three-orbitcontrols":"node_modules/three-orbitcontrols/OrbitControls.js","./loaders/RGBELoader.js":"src/loaders/RGBELoader.js","./assets/royal_esplanade_1k.hdr":"src/assets/royal_esplanade_1k.hdr","./three/Globe":"src/three/Globe.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"three":"node_modules/three/build/three.module.js","three-orbitcontrols":"node_modules/three-orbitcontrols/OrbitControls.js","./loaders/RGBELoader.js":"src/loaders/RGBELoader.js","./assets/royal_esplanade_1k.hdr":"src/assets/royal_esplanade_1k.hdr","./three/Globe":"src/three/Globe.js","./three/Tetrahedron":"src/three/Tetrahedron.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -37188,7 +37244,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "49287" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "55891" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
